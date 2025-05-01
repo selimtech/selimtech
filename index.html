@@ -1,10 +1,544 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Welcome to My Site</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dynamic Cards Builder</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<style>
+    .item-card {
+  margin-top: 10px;
+  padding: 10px;
+  
+  border-radius: 5px;
+  background-color: white;
+  
+}
+.bgr{
+ 
+  height: 100%;
+  border: 10px solid #000;
+  border-radius: 30px;
+  background: url('https://github.com/mohamed36578/my_photo/blob/3b4b55159f43de2cbabf4aa952888dfc8f735300/img/poster.jpg?raw=true') no-repeat center center;
+background-size: cover; 
+  
+  
+}
+.embed-box {
+  background-color: rgba(0, 0, 0, 0.5); /* optional glass effect */
+  height: 100%;
+  border: 10px solid #000;
+  border-radius: 18px;
+  overflow: auto;
+scrollbar-width: none;
+-ms-overflow-style: none;
+  
+ 
+
+  
+  
+  width: 100%;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+.phone-frame {
+  width: 290px;
+  height: 570px;
+  border-radius: 30px;
+  margin-top: 20px;
+  box-shadow: 0 0 15px rgba(0,0,0,0.3);
+  color: white;
+  margin-left: 20%;
+  padding: 0;
+
+  
+  
+  
+}
+.embed-card {
+  
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 15px;
+
+  
+  
+}
+.editable-title {
+  cursor: pointer;
+}
+.drag-handle {
+  cursor: grab;
+  user-select: none;
+  font-size: 20px;
+  margin-left: 10px;
+}
+.item-drag-handle {
+  cursor: grab;
+  user-select: none;
+  font-size: 18px;
+  margin-right: 5px;
+}
+.card-front{
+    margin-bottom: 20px;
+    border:white solid 2px;
+  border-top: none;
+  border-radius: 15px;
+  backface-visibility: hidden;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background-color: transparent; /* 50% opacity */
+  border-left: none;
+}
+.card-back{
+    display: none;
+}
+button{
+  background-color: black;
+  color: white;
+  border-radius: 15px;
+}
+</style>
 </head>
-<body>
-  <h1>mohamed ben ravaa</h1>
-  <p>abdelrab idriss.</p>
+<body class="p-4">
+  <div class="container">
+    <h2 class="mb-4">Dynamic Cards Builder</h2>
+
+      <!-- 🔐 Login Form -->
+  <div id="loginForm">
+    <h3>Login</h3>
+    <input type="email" id="email" placeholder="Email"><br>
+    <input type="password" id="password" placeholder="Password"><br>
+    <button onclick="login()">Login</button>
+  </div>
+
+  <!-- ✍️ Post Form (Hidden until logged in) -->
+  <div id="postForm" style="display: none;">
+    <p id="postId" >sidi</p>
+    
+    <textarea name="content" id="content" class="form-control" placeholder="Content" style="display: none;" rows="4" required></textarea>
+    <button class="btn btn-primary" onclick=" copyAllCardTexts(); submitPost()">Submit</button>
+
+    
+   
+    
+                <br>
+                <br>
+                <br>
+
+      <h1 id="bgr" style="display: none;" >poster</h1>
+      <form  class="card p-4 shadow-sm mb-5">
+      
+      <div class="input-group mb-3">
+        <input type="text" id="cardTitleInput" class="form-control" placeholder="Enter card title">
+        <button class="btn btn-primary" onclick="createCard()">Create Card</button>
+      </div>
+  </form>
+    </div>
+    
+  
+  
+
+    <div id="cardsContainer" class="row gy-4"></div>
+    
+
+    <h4 class="mt-5">Live Embed Preview</h4>
+
+
+    <div class="phone-frame" id="phone-frame" >
+      <div class="bgr">
+
+      
+      <div class="embed-box" id="embedBox">
+        
+    </div>
+  </div>
+  </div>
+
+
+
+    <!-- ✅ Firebase v8 SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  
+  
+  
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  
+  <script>
+    let cardCounter = parseInt(localStorage.getItem('cardCounter')) || 0;
+
+    let editingItem = null;
+
+    window.onload = () => {
+      //localStorage.clear();
+
+      const saved = localStorage.getItem("cardsData");
+      //const savedBgr = localStorage.getItem("bgr");
+      const bgrElement = document.getElementById("bgr").textContent;
+      const frame = document.getElementById('phone-frame');
+      frame.style.backgroundImage = `url(https://github.com/mohamed36578/my_photo/blob/3b4b55159f43de2cbabf4aa952888dfc8f735300/img/${bgrElement}.jpg?raw=true)`;
+
+
+
+
+      if (saved) {
+        document.getElementById("cardsContainer").innerHTML = saved;
+        rebindEvents();
+        updateEmbed();
+      }
+    };
+
+    function rebindEvents() {
+      document.querySelectorAll("#cardsContainer > div").forEach(card => {
+        const cardId = card.id;
+        Sortable.create(card.querySelector(".items"), {
+          animation: 150,
+          handle: ".item-drag-handle",
+          onEnd: updateEmbedAndSave
+        });
+      });
+
+      Sortable.create(document.getElementById("cardsContainer"), {
+        animation: 150,
+        handle: ".drag-handle",
+        onEnd: updateEmbedAndSave
+      });
+    }
+
+    function createCard() {
+      const title = document.getElementById("cardTitleInput").value.trim();
+      if (!title) return alert("Please enter a card title");
+      event.preventDefault();
+      cardCounter++;
+  localStorage.setItem('cardCounter', cardCounter); // Save the updated counter
+      const cardId = `card-${cardCounter}`;
+      const container = document.getElementById("cardsContainer");
+
+      const cardHTML = `
+        <div class="col-md-6" id="${cardId}">
+          <div class="card shadow">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <div class="d-flex align-items-center">
+                <h5 class="mb-0 editable-title me-2" onclick="editCardTitle(this)">${title}</h5>
+                <span class="drag-handle" title="Drag card">⠿</span>
+              </div>
+              <button class="btn btn-sm btn-danger" onclick="deleteCard('${cardId}')">Delete Card</button>
+            </div>
+            <div class="card-body">
+              <form onsubmit="event.preventDefault(); addItem('${cardId}', this)">
+                <div class="mb-2">
+                  <input type="text" class="form-control" placeholder="Name" required>
+                </div>
+                <div class="mb-2">
+                  <input type="number" class="form-control" placeholder="Price" required>
+                </div>
+                <div class="mb-2">
+                  <textarea class="form-control" rows="2" placeholder="Description" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-success">Add Item</button>
+              </form>
+              <div class="items mt-3"></div>
+            </div>
+          </div>
+        </div>
+      `;
+      container.insertAdjacentHTML("beforeend", cardHTML);
+
+      Sortable.create(document.getElementById(cardId).querySelector(".items"), {
+        animation: 150,
+        handle: ".item-drag-handle",
+        onEnd: updateEmbedAndSave
+      });
+
+      updateEmbedAndSave();
+      document.getElementById("cardTitleInput").value = "";
+    }
+
+    function addItem(cardId, form) {
+      const inputs = form.querySelectorAll("input, textarea");
+      const name = inputs[0].value.trim();
+      const price = inputs[1].value.trim();
+      const desc = inputs[2].value.trim();
+
+      if (!name || !price || !desc) return alert("Fill all fields");
+
+      if (editingItem) {
+        editingItem.querySelector(".item-name").textContent = name;
+        editingItem.querySelector(".item-price").textContent = price;
+        editingItem.querySelector(".item-desc").textContent = desc;
+        editingItem = null;
+        form.querySelector("button").textContent = "Add Item";
+      } else {
+        const itemHTML = `
+          <div class="item-card d-flex justify-content-between align-items-start">
+            <div class="me-2 item-drag-handle" title="Drag item">⠿</div>
+            <div class="flex-grow-1">
+              <div><strong>Name:</strong> <span class="item-name">${name}</span></div>
+              <div><strong>Price:</strong> <span class="item-price">${price}</span>CFA</div>
+              <div><strong>Description:</strong> <span class="item-desc">${desc}</span></div>
+              <div class="mt-2">
+                <button class="btn btn-sm btn-warning me-2" onclick="editItem(this)">Edit</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteItem(this)">Delete</button>
+              </div>
+            </div>
+          </div>
+        `;
+        form.closest(".card-body").querySelector(".items").insertAdjacentHTML("beforeend", itemHTML);
+      }
+
+      inputs.forEach(i => i.value = "");
+      updateEmbedAndSave();
+    }
+
+    function editItem(btn) {
+      const item = btn.closest(".item-card");
+      const card = btn.closest(".card");
+      const form = card.querySelector("form");
+      const inputs = form.querySelectorAll("input, textarea");
+
+      inputs[0].value = item.querySelector(".item-name").textContent;
+      inputs[1].value = item.querySelector(".item-price").textContent;
+      inputs[2].value = item.querySelector(".item-desc").textContent;
+
+      form.querySelector("button").textContent = "Save Changes";
+      editingItem = item;
+    }
+
+    function deleteCard(id) {
+      document.getElementById(id).remove();
+      updateEmbedAndSave();
+    }
+
+    function deleteItem(btn) {
+      btn.closest(".item-card").remove();
+      updateEmbedAndSave();
+    }
+
+    function editCardTitle(el) {
+      const current = el.textContent;
+      const input = document.createElement("input");
+      input.type = "text";
+      input.value = current;
+      input.className = "form-control form-control-sm";
+      input.onblur = input.onkeydown = function(e) {
+        if (e.type === "blur" || e.key === "Enter") {
+          const newTitle = input.value.trim() || current;
+          const h5 = document.createElement("h5");
+          h5.className = "mb-0 editable-title";
+          h5.textContent = newTitle;
+          h5.onclick = () => editCardTitle(h5);
+          input.replaceWith(h5);
+          updateEmbedAndSave();
+        }
+      };
+      el.replaceWith(input);
+      input.focus();
+    }
+
+    function updateEmbed() {
+      const embedBox = document.getElementById("embedBox");
+      let html = "<br><br><br><br><br><br>  <br><br><br><br><br><br><br>  <br>";
+
+      document.querySelectorAll("#cardsContainer > div").forEach(card => {
+        let titleElement = card.querySelector(".card-header h5") || card.querySelector(".card-header input");
+        const title = titleElement ? (titleElement.value || titleElement.textContent) : "Untitled";
+
+        html += `<div class="embed-card"><h2>${title}</h2> `;
+
+        card.querySelectorAll(".item-card").forEach(item => {
+          const name = item.querySelector(".item-name").textContent;
+          const price = item.querySelector(".item-price").textContent;
+          const desc = item.querySelector(".item-desc").textContent;
+          
+          html += `
+            <div class="card-container">
+              <div class="flip-card">
+                <div class="card-front" onclick="flipCard(this)" >
+                  
+                  <span class="item">${name}</span>
+                  <span class="itemx"></span>
+                  
+                  <span>${price}CFA</span>
+                  
+                </div>
+                <div class="card-back" >
+                  <span><small>${desc}</small></span>
+                  <br>
+                  <button class="btn btn-secondary selectButton " onclick="cbg(this);renderItemsToSelect();" > select </button>
+                  <button class="btn btn-secondary back " onclick="flipCard(this)" > flipp </button>
+                  
+                </div>
+              </div>
+            </div><!-- card container -->`;
+        });
+
+        html += `</div>`;
+      });
+
+      embedBox.innerHTML = html;
+    }
+
+    function updateEmbedAndSave() {
+      updateEmbed();
+      localStorage.setItem("cardsData", document.getElementById("cardsContainer").innerHTML);
+    }
+
+  </script>
+  <script>
+    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+    apiKey: "AIzaSyCSsMPJje7aAiVi9Axh3P1sesqi5V3jzQs",
+    authDomain: "myflsk.firebaseapp.com",
+    databaseURL: "https://myflsk-default-rtdb.firebaseio.com",
+    projectId: "myflsk",
+    storageBucket: "myflsk.firebasestorage.app",
+    messagingSenderId: "646880472314",
+    appId: "1:646880472314:web:c34bcc9787be410a80ad43",
+
+  };
+  
+// ✅ Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+
+// ✅ Show correct form based on login status
+auth.onAuthStateChanged((user) => {
+  if (user) {
+    document.getElementById("loginForm").style.display = "none";
+    document.getElementById("postForm").style.display = "block";
+
+  //  loadMyPosts(user.uid);
+  } else {
+    document.getElementById("loginForm").style.display = "block";
+    document.getElementById("postForm").style.display = "none";
+
+  }
+});
+
+// ✅ Login function
+function login() {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+
+  auth.signInWithEmailAndPassword(email, password)
+    .then(() => {
+      console.log("Login successful");
+    })
+    .catch((error) => {
+      alert("Login failed: " + error.message);
+    });
+}
+
+// ✅ Submit post to Firebase
+function submitPost() {
+    const content = document.getElementById("content").value;
+
+    const postId = document.getElementById("postId").textContent; // New input
+    const user = auth.currentUser;
+  
+    if (user && content && postId) {
+      db.ref("posts/" + user.uid + "/" + postId).set({
+        content,
+        timestamp: Date.now()
+      });
+      document.getElementById("content").value = "";
+      
+    }
+  }
+  
+
+  
+  
+
+
+// ✅ Logout
+function logout() {
+  auth.signOut().then(() => {
+    console.log("Logged out");
+  });
+}
+
+function copyDivTextContent(className) {
+  const element = document.querySelector(`div.${className}`);
+  if (element) {
+    const text = element.textContent;
+
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        alert("Copied to clipboard!");
+      })
+      .catch(err => {
+        alert("Failed to copy: " + err);
+      });
+  } else {
+    alert("Element not found.");
+  }
+}
+
+function copyElementHTMLById(elementId) {
+    const element = document.getElementById(elementId);
+  
+    if (element) {
+      const html = element.outerHTML;
+  
+      navigator.clipboard.writeText(html)
+        .then(() => alert("HTML copied to clipboard!"))
+        .catch(err => alert("Failed to copy: " + err));
+    } else {
+      alert("No element found with ID: " + elementId);
+    }
+  }
+  
+  function copyAllCardTexts() {
+    const cards = document.querySelectorAll("#cardsContainer > div");
+    let textOutput = "";
+
+    cards.forEach(card => {
+      const titleEl = card.querySelector(".editable-title");
+      const title = titleEl ? titleEl.textContent.trim() : "Untitled Card";
+
+      textOutput += `</div><div class="embed-card"><h2>${title}</h2>\n`;
+  
+      const items = card.querySelectorAll(".item-card");
+      items.forEach(item => {
+        const name = item.querySelector(".item-name").textContent.trim();
+        const price = item.querySelector(".item-price").textContent.trim();
+        const desc = item.querySelector(".item-desc").textContent.trim();
+  
+        textOutput += `<div class="card-container">
+                        <div class="flip-card">
+                        <div class="card-front" onclick="flipCard(this)">
+                      <span class="item">${name}\n</span>
+                      <span class="itemx"></span>
+                      <span class="itemy">${price}\n</span></div>
+                      <div class="card-back">
+                      <span><small>${desc}\n</small></span><br>
+                      <button class="btn btn-success selectButton" onclick="cbg(this);renderItemsToSelect();">+</button>
+                      <button class="btn btn-danger back" onclick="flipCard(this)">x</button>
+                      </div></div></div>
+     `;
+      });
+  ; // Add a blank line between cards
+      p = document.getElementById('content');
+      p.value = '<h1 style="display: none;" >sidi</h1>' + textOutput   ;
+    });
+  
+    // Copy to clipboard
+   // navigator.clipboard.writeText(textOutput).then(() => {
+     // alert("Card texts copied to clipboard!");
+   // }).catch(err => {
+     // console.error("Failed to copy text: ", err);
+   // });
+  }
+  
+  
+  </script>
 </body>
 </html>
